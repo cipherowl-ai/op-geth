@@ -59,6 +59,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb/remotedb"
 	"github.com/ethereum/go-ethereum/ethstats"
 	"github.com/ethereum/go-ethereum/graphql"
+	"github.com/ethereum/go-ethereum/guardian"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/internal/flags"
 	"github.com/ethereum/go-ethereum/log"
@@ -1058,6 +1059,18 @@ Please note that --` + MetricsHTTPFlag.Name + ` must be set to start the server.
 		Value:    metrics.DefaultConfig.InfluxDBOrganization,
 		Category: flags.MetricsCategory,
 	}
+
+	GuardianEnabledFlag = &cli.BoolFlag{
+		Name:     "guardian.enable",
+		Usage:    "Enable guardian mode",
+		Category: flags.GuardianCategory,
+	}
+	GuardianFilterFilePathFlag = &cli.StringFlag{
+		Name:     "guardian.filter.filepath",
+		Usage:    "File path to the bloom filter file",
+		Value:    "",
+		Category: flags.GuardianCategory,
+	}
 )
 
 var (
@@ -1742,6 +1755,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	setMiner(ctx, &cfg.Miner)
 	setRequiredBlocks(ctx, cfg)
 	setLes(ctx, cfg)
+	setGuardian(ctx, &cfg.Guardian)
 
 	// Cap the cache allowance and tune the garbage collector
 	mem, err := gopsutil.VirtualMemory()
@@ -2097,6 +2111,16 @@ func MakeBeaconLightConfig(ctx *cli.Context) bparams.ClientConfig {
 	config.Threshold = ctx.Int(BeaconThresholdFlag.Name)
 	config.NoFilter = ctx.Bool(BeaconNoFilterFlag.Name)
 	return config
+}
+
+// setGuardian applies guardian-related command line flags to the config.
+func setGuardian(ctx *cli.Context, c *guardian.Config) {
+	if ctx.IsSet(GuardianEnabledFlag.Name) {
+		c.Enabled = ctx.Bool(GuardianEnabledFlag.Name)
+	}
+	if ctx.IsSet(GuardianFilterFilePathFlag.Name) {
+		c.FilterFilePath = ctx.String(GuardianFilterFilePathFlag.Name)
+	}
 }
 
 // SetDNSDiscoveryDefaults configures DNS discovery with the given URL if
