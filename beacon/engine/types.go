@@ -297,18 +297,16 @@ func ExecutableDataToBlockNoHash(data ExecutableData, versionedHashes []common.H
 		withdrawalsRoot = &h
 	}
 
+	isthmusEnabled := bType.IsIsthmus(data.Timestamp)
 	var requestsHash *common.Hash
 	if requests != nil {
-		// Put back request type byte.
-		typedRequests := make([][]byte, len(requests))
-		for i, reqdata := range requests {
-			typedReqdata := make([]byte, len(reqdata)+1)
-			typedReqdata[0] = byte(i)
-			copy(typedReqdata[1:], reqdata)
-			typedRequests[i] = typedReqdata
+		if isthmusEnabled && len(requests) > 0 {
+			return nil, fmt.Errorf("requests should be empty for Isthmus blocks")
 		}
-		h := types.CalcRequestsHash(typedRequests)
+		h := types.CalcRequestsHash(requests)
 		requestsHash = &h
+	} else if isthmusEnabled {
+		return nil, fmt.Errorf("requests must be an empty array for Isthmus blocks")
 	}
 
 	header := &types.Header{
@@ -378,20 +376,15 @@ func BlockToExecutableData(block *types.Block, fees *big.Int, sidecars []*types.
 			bundle.Proofs = append(bundle.Proofs, hexutil.Bytes(sidecar.Proofs[j][:]))
 		}
 	}
-	// Remove type byte in requests.
-	var plainRequests [][]byte
-	if requests != nil {
-		plainRequests = make([][]byte, len(requests))
-		for i, reqdata := range requests {
-			plainRequests[i] = reqdata[1:]
-		}
-	}
+
 	return &ExecutionPayloadEnvelope{
-		ExecutionPayload:      data,
-		BlockValue:            fees,
-		BlobsBundle:           &bundle,
-		Requests:              plainRequests,
-		Override:              false,
+		ExecutionPayload: data,
+		BlockValue:       fees,
+		BlobsBundle:      &bundle,
+		Requests:         requests,
+		Override:         false,
+
+		// OP-Stack addition
 		ParentBeaconBlockRoot: block.BeaconRoot(),
 	}
 }

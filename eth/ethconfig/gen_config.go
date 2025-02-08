@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/txpool/blobpool"
 	"github.com/ethereum/go-ethereum/core/txpool/legacypool"
-	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 	"github.com/ethereum/go-ethereum/miner"
 )
@@ -19,7 +18,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	type Config struct {
 		Genesis                                   *core.Genesis `toml:",omitempty"`
 		NetworkId                                 uint64
-		SyncMode                                  downloader.SyncMode
+		SyncMode                                  SyncMode
 		EthDiscoveryURLs                          []string
 		SnapDiscoveryURLs                         []string
 		NoPruning                                 bool
@@ -57,6 +56,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		OverrideOptimismGranite                   *uint64 `toml:",omitempty"`
 		OverrideOptimismHolocene                  *uint64 `toml:",omitempty"`
 		OverrideOptimismInterop                   *uint64 `toml:",omitempty"`
+		OverrideOptimismIsthmus                   *uint64 `toml:",omitempty"`
 		ApplySuperchainUpgrades                   bool    `toml:",omitempty"`
 		RollupSequencerHTTP                       string
 		RollupSequencerTxConditionalEnabled       bool
@@ -110,6 +110,7 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.OverrideOptimismGranite = c.OverrideOptimismGranite
 	enc.OverrideOptimismHolocene = c.OverrideOptimismHolocene
 	enc.OverrideOptimismInterop = c.OverrideOptimismInterop
+	enc.OverrideOptimismIsthmus = c.OverrideOptimismIsthmus
 	enc.ApplySuperchainUpgrades = c.ApplySuperchainUpgrades
 	enc.RollupSequencerHTTP = c.RollupSequencerHTTP
 	enc.RollupSequencerTxConditionalEnabled = c.RollupSequencerTxConditionalEnabled
@@ -129,7 +130,7 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	type Config struct {
 		Genesis                                   *core.Genesis `toml:",omitempty"`
 		NetworkId                                 *uint64
-		SyncMode                                  *downloader.SyncMode
+		SyncMode                                  *SyncMode
 		EthDiscoveryURLs                          []string
 		SnapDiscoveryURLs                         []string
 		NoPruning                                 *bool
@@ -167,6 +168,7 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		OverrideOptimismGranite                   *uint64 `toml:",omitempty"`
 		OverrideOptimismHolocene                  *uint64 `toml:",omitempty"`
 		OverrideOptimismInterop                   *uint64 `toml:",omitempty"`
+		OverrideOptimismIsthmus                   *uint64 `toml:",omitempty"`
 		ApplySuperchainUpgrades                   *bool   `toml:",omitempty"`
 		RollupSequencerHTTP                       *string
 		RollupSequencerTxConditionalEnabled       *bool
@@ -302,6 +304,9 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.OverrideOptimismInterop != nil {
 		c.OverrideOptimismInterop = dec.OverrideOptimismInterop
+	}
+	if dec.OverrideOptimismIsthmus != nil {
+		c.OverrideOptimismIsthmus = dec.OverrideOptimismIsthmus
 	}
 	if dec.ApplySuperchainUpgrades != nil {
 		c.ApplySuperchainUpgrades = *dec.ApplySuperchainUpgrades
