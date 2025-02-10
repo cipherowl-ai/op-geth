@@ -11,6 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 
+	"encoding/hex"
+
 	"github.com/cipherowl-ai/addressdb/address"
 	"github.com/cipherowl-ai/addressdb/reload"
 	"github.com/cipherowl-ai/addressdb/store"
@@ -97,7 +99,7 @@ func newGuardian(config Config) (*Guardian, error) {
 	}, nil
 }
 
-// CheckTransaction checks if the sender or recipient in the transaction is in the filter file.
+// CheckTransaction checks if the sender, recipient, or ERC20 transfer recipient in the transaction is in the filter file.
 // Returns true if the transaction interacts with any filtered addresses.
 func (p *Guardian) CheckTransaction(signer types.Signer, tx *types.Transaction) bool {
 	// Extract the sender's address
@@ -117,11 +119,29 @@ func (p *Guardian) CheckTransaction(signer types.Signer, tx *types.Transaction) 
 
 	// Check the recipient's address if applicable
 	if to := tx.To(); to != nil {
+		// Check direct recipient
 		if filtered, err := p.checkAddress(tx, from.Hex(), to.Hex()); err != nil || filtered {
 			if err != nil {
 				log.Error("Error checking recipient address", "err", err)
 			}
 			return filtered
+		}
+
+		// Check for ERC20 transfer
+		if len(tx.Data()) >= 4+32+32 { // 4 bytes function signature + 32 bytes address + 32 bytes amount
+			// ERC20 transfer function signature: 0xa9059cbb
+			if tx.Data()[0] == 0xa9 && tx.Data()[1] == 0x05 && tx.Data()[2] == 0x9c && tx.Data()[3] == 0xbb {
+				// Extract recipient address from transfer data (skip first 4 bytes of signature and 12 bytes of padding)
+				recipientBytes := tx.Data()[16:36]
+				recipient := "0x" + hex.EncodeToString(recipientBytes)
+
+				if filtered, err := p.checkAddress(tx, from.Hex(), recipient); err != nil || filtered {
+					if err != nil {
+						log.Error("Error checking ERC20 transfer recipient", "err", err)
+					}
+					return filtered
+				}
+			}
 		}
 	}
 
