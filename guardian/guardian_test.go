@@ -90,7 +90,8 @@ func TestGuardian_CheckTransaction(t *testing.T) {
 				a.tx = tx
 			},
 			want: false,
-		}, {
+		},
+		{
 			name: "should filter 'to' address",
 			args: new(args),
 			prepare: func(a *args) {
@@ -129,6 +130,115 @@ func TestGuardian_CheckTransaction(t *testing.T) {
 				a.testFromAddress = from.Hex()
 			},
 			want: true,
+		},
+		{
+			name: "ERC20 transfer to filtered address",
+			args: new(args),
+			prepare: func(a *args) {
+				key, _ := crypto.GenerateKey()
+				signer := types.NewEIP155Signer(big.NewInt(18))
+
+				// Create ERC20 transfer data (transfer to filtered address)
+				transferFnSignature := []byte{0xa9, 0x05, 0x9c, 0xbb}
+				paddedAddress := common.LeftPadBytes(common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266").Bytes(), 32)
+				paddedAmount := common.LeftPadBytes(big.NewInt(1000).Bytes(), 32)
+				data := append(transferFnSignature, append(paddedAddress, paddedAmount...)...)
+
+				tx, err := types.SignTx(
+					types.NewTransaction(0, common.HexToAddress("0x1234567890123456789012345678901234567890"), // Some token contract
+						new(big.Int), 0, new(big.Int), data),
+					signer,
+					key,
+				)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				a.signer = signer
+				a.tx = tx
+			},
+			want: true,
+		},
+		{
+			name: "ERC20 transfer to non-filtered address",
+			args: new(args),
+			prepare: func(a *args) {
+				key, _ := crypto.GenerateKey()
+				signer := types.NewEIP155Signer(big.NewInt(18))
+
+				// Create ERC20 transfer data (transfer to non-filtered address)
+				transferFnSignature := []byte{0xa9, 0x05, 0x9c, 0xbb}
+				paddedAddress := common.LeftPadBytes(common.HexToAddress("0x1111111111111111111111111111111111111111").Bytes(), 32)
+				paddedAmount := common.LeftPadBytes(big.NewInt(1000).Bytes(), 32)
+				data := append(transferFnSignature, append(paddedAddress, paddedAmount...)...)
+
+				tx, err := types.SignTx(
+					types.NewTransaction(0, common.HexToAddress("0x1234567890123456789012345678901234567890"), // Some token contract
+						new(big.Int), 0, new(big.Int), data),
+					signer,
+					key,
+				)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				a.signer = signer
+				a.tx = tx
+			},
+			want: false,
+		},
+		{
+			name: "Invalid ERC20 transfer data (too short)",
+			args: new(args),
+			prepare: func(a *args) {
+				key, _ := crypto.GenerateKey()
+				signer := types.NewEIP155Signer(big.NewInt(18))
+
+				// Create invalid ERC20 transfer data (too short)
+				data := []byte{0xa9, 0x05, 0x9c, 0xbb, 0x00} // Just signature + 1 byte
+
+				tx, err := types.SignTx(
+					types.NewTransaction(0, common.HexToAddress("0x1234567890123456789012345678901234567890"),
+						new(big.Int), 0, new(big.Int), data),
+					signer,
+					key,
+				)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				a.signer = signer
+				a.tx = tx
+			},
+			want: false,
+		},
+		{
+			name: "Non-ERC20 transfer data with same length",
+			args: new(args),
+			prepare: func(a *args) {
+				key, _ := crypto.GenerateKey()
+				signer := types.NewEIP155Signer(big.NewInt(18))
+
+				// Create data with different function signature but same length
+				differentFnSignature := []byte{0xbb, 0xbb, 0xbb, 0xbb}
+				paddedAddress := common.LeftPadBytes(common.HexToAddress("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266").Bytes(), 32)
+				paddedAmount := common.LeftPadBytes(big.NewInt(1000).Bytes(), 32)
+				data := append(differentFnSignature, append(paddedAddress, paddedAmount...)...)
+
+				tx, err := types.SignTx(
+					types.NewTransaction(0, common.HexToAddress("0x1234567890123456789012345678901234567890"),
+						new(big.Int), 0, new(big.Int), data),
+					signer,
+					key,
+				)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				a.signer = signer
+				a.tx = tx
+			},
+			want: false,
 		},
 	}
 	for _, tt := range tests {
